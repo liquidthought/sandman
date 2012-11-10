@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>WebGL Sand Toy</title>
+
+<style>
+body {
+-webkit-user-select: none;
+-khtml-user-select: none;
+-moz-user-select: none;
+-o-user-select: none;
+user-select: none;
+}
+</style>
+
+<script src="jquery.min.js"></script>
+<script src="sandman2.js"></script>
+<script type='text/javascript'>
+
+  var particleSrc = [
+  
+  ' if ((autoReassemble == 1 && nT > 0.0 && nT < 200.0) || reassemble > 1.0) {',
+  '		  highp float signx = sign(sm_displacement.x);',
+  '		  highp float ddx = (sm_displacement.x/5.0)*signx;',
+  '		  if (ddx > 0.016) ddx = 0.016;',
+  '		  sm_displacement.x = sm_displacement.x - ddx * signx;',
+  '		  highp float signx2 = sign(sm_displacement.x);',
+  '		  if (signx != signx2) sm_displacement.x = 0.0;',
+  '		  vX = 0.0;',
+  '		  highp float signy = sign(sm_displacement.y);',
+  '		  highp float ddy = (sm_displacement.y/5.0)*signy;',
+  '		  if (ddy > 0.016) ddy = 0.016;',
+  '		  sm_displacement.y = sm_displacement.y - ddy * signy;',
+  '		  highp float signy2 = sign(sm_displacement.y);',
+  '		  if (signy != signy2) sm_displacement.y = 0.0;',
+  '		  vY = 0.0;',
+  '	}',   
+	'else if (reassemble == 1.0) {',
+	'		sm_displacement.x = 0.0;',
+	'		sm_displacement.y = 0.0;',
+	'		vX = 0.0;',
+	'		vY = 0.0;',
+	'	}',
+  '{',
+  
+   
+  '	highp vec2 center = sm_position-sm_mouse; ',
+  ' highp float sqdist = dot(center, center);',
+  '	if (mouseDown == 1 && sqdist <= 0.05 ) {',
+  '		/*if (doT == 1)*/ nT = 400.0;',
+  ' highp float force = 2.0*(1.0-(sqdist/0.05));',
+  ' if (prevMouse.x != 0.0) {',
+  '		vX = (noise.r-0.5)*0.024;',
+  '		vX += prevMouse.x*force;',
+  '	}',
+  ' if (prevMouse.y != 0.0) {',
+  '		vY = (noise.g-0.5)*0.024;',
+  '		vY += prevMouse.y*force;',
+  '	}',
+  '}',
+
+  // simple friction
+  ' vX = vX - (vX * 0.13);',
+  ' vY = vY - (vY * 0.13);',
+
+  ' if (sm_position.x > 1.19 && vX > 0.0) vX *= -0.8 ;',
+  ' if (sm_position.y > 1.19 && vY > 0.0) vY *= -0.8;',
+  ' if (sm_position.x < -1.19 && vX < 0.0) vX *= -0.8;',
+  ' if (sm_position.y < -1.19 && vY < 0.0) vY *= -0.8;',
+
+  ' sm_displacement.x += vX;',
+  ' sm_displacement.y += vY;',
+  ' }',
+  ].join("\n");
+
+
+
+$(document).ready(function() {
+	var myObject = document.getElementById("glcanvas");
+	$(document).mousedown(
+		function(e) {
+			$("#glcanvas").css({cursor:"none"});
+			mouseDown = 1;
+	});
+	
+	$(document).mouseup(
+		function(e) {
+			$("#glcanvas").css({cursor:"pointer"});
+			mouseDown = 0;
+	});
+
+	$(document).mousemove(
+			function(e) {
+				var posx = 0;
+				var posy = 0;
+				if (!e) {
+						e = window.event;
+				}
+				if (e.pageX || e.pageY) {
+					posx = e.pageX;
+					posy = e.pageY;
+				}
+				else if (e.clientX || e.clientY) {
+					posx = e.clientX + document.body.scrollLeft + document.documentElement.scrollLeft;
+					posy = e.clientY + document.body.scrollTop + document.documentElement.scrollTop;
+				}
+
+				function ElementPosition(obj) {
+					var x=0, y=0;
+					x = obj.offsetLeft;
+					y = obj.offsetTop;
+					var body = document.getElementsByTagName('body')[0];
+					while (obj.offsetParent && obj!=body) {
+						x += obj.offsetParent.offsetLeft;
+						y += obj.offsetParent.offsetTop;
+						obj = obj.offsetParent;
+					}
+					return [x,y];
+				}
+				
+				var offset = ElementPosition(myObject);
+				
+				mousePos = [((posx-offset[0])/611), (posy-offset[1])/611];					
+//					$("#mouse").html(mousePos[0] + ", " + mousePos[1]);					
+	}); // mousemove
+}); // ready
+
+</script>
+</head>
+
+<body onload='start();'>
+
+<table>
+<tr><td>
+<div id="havefun">
+    <canvas id='glcanvas' width=612 height=612 style="border:1px solid black;cursor:pointer">
+       It seems the browser does not support the 'canvas' tag (part of HTML5)
+    </canvas>
+    <div id="mouse"></div>
+    <a href="#" onclick="reset();return false;">Reset</a>&nbsp;|&nbsp;<a href="#" onclick="doReassemble();return false;">Reassemble</a>&nbsp;|&nbsp;<input type="checkbox" checked="yes" id="auto_reassemble">Auto Reassemble&nbsp;|&nbsp;<span id="fps">0 fps</span>
+</div>
+<div id="nofun" style="color:red"></div>
+</td><td>&nbsp;</td><td valign="top">
+<h2>WebGL Sand Toy</h2>
+<p>A little pixel toy.  Requires a browser supporting WebGL and the ability to do texture lookups from within a vertex shader.
+The particle physics are calculated on the GPU using a shader.
+</p>
+<p>Just drag the mouse around the picture to brush the pixels around... Like sand...<p>
+<!--p><i>Note: On OSX works with latest Firefox and Chrome.</i></p-->
+<!--p><i>Note: On Windows works with latest Firefox if your platform supports WebGL. (Not on Chrome due to lack of support for texture lookups in vertex shaders).</i></p-->
+<p>If your browser doesn't work, here is a <a href="http://www.youtube.com/watch?v=PK9IIXNEMlg">short youtube video.</a></p>
+<a href="http://www.storminthecastle.com">My Blog</a>
+</td>
+</tr>
+<!--script type="text/javascript">
+var gaJsHost = (("https:" == document.location.protocol) ? "https://ssl." : "http://www.");
+document.write(unescape("%3Cscript src='" + gaJsHost + "google-analytics.com/ga.js' type='text/javascript'%3E%3C/script%3E"));
+</script-->
+<!--script type="text/javascript">
+var pageTracker = _gat._getTracker("UA-1102626-10");
+pageTracker._trackPageview();
+</script-->
+  </body>
+</html>
+

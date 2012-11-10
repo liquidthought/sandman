@@ -1,0 +1,22 @@
+It is possible to do as you asked. I have been working on this problem for the last two days for a similar reason to yours. The solution (my solution is for fragment shaders - I didnt try it in the vertex shader but it shouldnt be any different) is not complicated but it does require a little bit of fiddling with IEEE single precision floats. Here is what I arrived at:
+
+// 10.99 = 0x412FD70A in IEEE single precision
+highp vec4 rgba = vec4(0x41, 0x2F, 0xD7, 0x0A); 
+
+highp float Sign = 1.0 - step(128.0,rgba[0])*2.0;
+highp float Exponent = 2.0 * mod(rgba[0],128.0) + step(128.0,rgba[1]) - 127.0; 
+highp float Mantissa = mod(rgba[1],128.0)*65536.0 + rgba[2]*256.0 +rgba[3] + float(0x800000);
+highp float Result = Sign * Mantissa * pow(2.0,Exponent - 23.0);
+
+
+In order to use the above code without the sample value you will need to get the RGBA texel from a sampler2d uniform and make sure that the values of each R,G,B and A channels are between 0.0 and 255.0 . This is easy to achieve as follows:
+
+highp vec4 rgba = texture2D(textureSamplerUniform, texcoordVarying)*255.0;
+You should be aware though that the endianess of your machine will dictate the correct order of your bytes. The above code assumes that floats are stored in big-endian order. If you see your results are wrong then just swap the order of the data by writing
+
+rgba.rgba=rgba.abgr;
+
+
+immediately after the line where you set it. Alternatively swap the indices on rgba. I think the above line is more intutive though and less prone to careless errors.
+
+I havent started working on the reverse procedure where you can store a float back into the byte format but I will soon.
